@@ -1,0 +1,213 @@
+<!doctype html>
+<head>
+<style>
+html,body{
+    margin : 0;
+}
+div{
+    background : green;
+    width : .5em;
+    height : 2em;
+    position : absolute;
+    left : -.25em;
+    top : -.25em;
+    -webkit-border-radius : 1em 1em 0 0;
+    border-radius : 1em 1em 0 0;
+    -webkit-transform-origin : .25em .25em;
+}
+</style>
+</head>
+<body>
+    <canvas width="300" height="300"></canvas>
+    <div></div>
+<script>
+window.requestAnimFrame = (function(){
+  return  window.requestAnimationFrame       ||
+          window.webkitRequestAnimationFrame ||
+          window.mozRequestAnimationFrame    ||
+          function( callback ){
+            window.setTimeout(callback, 1000 / 60);
+          };
+})();
+var canvas = document.querySelector("canvas")
+    ,ctx = canvas.getContext("2d")
+    ,vs = [
+         [-10, 10, 10, 1]
+        ,[-10, 11, 10, 1]
+        ,[10, 10, 10, 1]
+        ,[10, -10, 10, 1]
+        ,[-10, -10, 10, 1]
+        ,[-10, 10, 10, 1]
+        ,[-10, 10, -10, 1]
+        ,[10, 10, -10, 1]
+        ,[10, -10, -10, 1]
+        ,[-10, -10, -10, 1]
+        ,[-10, 10, -10, 1]
+        ,[-10, 10, 10, 1]
+        ,[10, 10, 10, 1]
+        ,[10, 10, -10, 1]
+        ,[10, -10, -10, 1]
+        ,[10, -10, 10, 1]
+        ,[-10, -10, 10, 1]
+        ,[-10, -10, -10, 1]
+
+    ]
+    ,vs2 = []
+    ,cos = Math.cos
+    ,sin = Math.sin
+    ,tan = Math.tan
+    ,PI = Math.PI
+    ,fps = 30
+    ,angle = 0
+    ;
+function multiply(m, v){
+    return [
+         m[0]*v[0]+m[1]*v[1]+m[2]*v[2]+m[3]*v[3]
+        ,m[4]*v[0]+m[5]*v[1]+m[6]*v[2]+m[7]*v[3]
+        ,m[8]*v[0]+m[9]*v[1]+m[10]*v[2]+m[11]*v[3]
+        ,m[12]*v[0]+m[13]*v[1]+m[14]*v[2]+m[15]*v[3]
+    ]
+}
+function change(){
+    vs.forEach(function(v,i,vs){
+        vs2[i] = vs[i]
+        //旋转
+        var phi = angle*PI/180
+            ;
+        vs2[i] = multiply([
+             1 ,0 ,0 ,0
+            ,0 ,cos(phi) ,-sin(phi) ,0
+            ,0 ,sin(phi) ,cos(phi) ,0
+            ,0 ,0 ,0 ,1
+        ], vs2[i]);
+        //平移
+        vs2[i] = multiply([
+             1 ,0 ,0 ,0
+            ,0 ,1 ,0 ,0
+            ,0 ,0 ,1 ,30
+            ,0 ,0 ,0 ,1
+        ], vs2[i]);
+
+
+        ////透视
+        ////视锥体frustum -> 规则观察体cvv
+        //var aspect = 1
+        //    ,fov =  5 * PI / 180
+        //    ,n = .1
+        //    ,f = 2000
+        //    ,t = n * tan(fov * .5)
+        //    ,b = -t
+        //    ,r = t*aspect
+        //    ,l = -r
+        //    ;
+        //vs2[i] = multiply([
+        //     2*n/(r-l) ,0 ,(r+l)/(r-l) ,0
+        //    ,0 ,2*n/(t-b) ,(t+b)/(t-b) ,0
+        //    ,0 ,0 ,(f+n)/(n-f) ,2*f*n/(n-f)
+        //    ,0 ,0 ,-1 ,0
+        //], vs2[i]);
+        ////cvv裁剪
+        ////齐次坐标 -> 普通坐标
+        //var m = 1/vs2[i][3];
+        //vs2[i] = multiply([
+        //     m ,0 ,0 ,0
+        //    ,0 ,m ,0 ,0
+        //    ,0 ,0 ,m ,0
+        //    ,0 ,0 ,0 ,m
+        //], vs2[i])
+        var d = 50
+            ;
+        vs2[i] = multiply([
+             1 ,0 ,0 ,0
+            ,0 ,1 ,0 ,0
+            ,0 ,0 ,1 ,0
+            ,0 ,0 ,1/d ,0
+        ], vs2[i])
+
+        var m = 1/vs2[i][3];
+        vs2[i] = multiply([
+             m ,0 ,0 ,0
+            ,0 ,m ,0 ,0
+            ,0 ,0 ,m ,0
+            ,0 ,0 ,0 ,m
+        ], vs2[i])
+    })
+    angle++;
+}
+var div = document.querySelector("div");
+function render(){
+    change();
+    ctx.clearRect(0,0,300,300);
+    ctx.beginPath();
+    ctx.fillStyle = "hsla(0,0%,0%,.2)";
+    ctx.strokeStyle = "hsla(0,0%,0%,.8)";
+    vs2.forEach(function(v,i,vs2){
+        x = v[0] + 150;
+        y = -v[1] + 150;
+        ctx.lineTo(x, y);
+        ctx.arc(x, y, 1.5, 0, 2*PI, false)
+        ctx.lineTo(x, y);
+    })
+    var va0 = vs[0]
+        ,vb0 = vs[1]
+        ,va1 = vs2[0]
+        ,vb1 = vs2[1]
+        ,xa0 = va0[0]
+        ,ya0 = va0[1]
+        ,xb0 = vb0[0]
+        ,yb0 = vb0[1]
+        ,xa1 = va1[0]
+        ,ya1 = va1[1]
+        ,xb1 = vb1[0]
+        ,yb1 = vb1[1]
+        ,e = xa1
+        ,f = ya1
+        ,a = (yb0 * (xa1 - e) - ya0 * (xb1 - e))/(yb0 * xa0 - ya0 * xb0)
+        ,b = (yb0 * (ya1 - f) - ya0 * (yb1 - f))/(yb0 * xa0 - ya0 * xb0)
+        ,c = (xb0 * (xa1 - e) - xa0 * (xb1 - e))/(xb0 * ya0 - xa0 * yb0)
+        ,d = (xb0 * (ya1 - f) - xa0 * (yb1 - f))/(xb0 * ya0 - xa0 * yb0)
+        ,A0B0 = [xb0 - xa0, yb0 - ya0]
+        ,A1B1 = [xb1 - xa1, yb1 - ya1]
+        //,A0B0norm = norm(A0B0)
+        //,A1B1norm = norm(A1B1)
+        //,theta = Math.acos((A0B0[0] * A1B1[0] + A0B0[1] * A1B1[1]) / (A0B0norm * A1B1norm)) * 180 / Math.PI
+        ,x1 = xb0 - xa0
+        ,y1 = yb0 - ya0
+        ,x2 = xb1 - xa1
+        ,y2 = yb1 - ya1
+        //,theta = Math.acos( (x1 * x2 + y1 * y2) / ( Math.sqrt(x1 * x1 + y1 * y1) * Math.sqrt( x2 * x2 + y2 * y2 ) ) ) * 180 / Math.PI
+        //,theta = ( Math.atan(y1/x1) - Math.atan(y2/x2) ) * 180 / Math.PI
+        ;
+    //var C = [
+    //     xa1 ,xb1 ,e ,0
+    //    ,ya1 ,yb1 ,f ,0
+    //    ,1 ,1 ,1 ,0
+    //    ,0 ,0 ,0 ,1
+    //]
+    //,B = inverse([
+    //     xa0 ,xb0 ,0 ,0
+    //    ,ya0 ,yb0 ,0 ,0
+    //    ,1 ,1 ,1 ,0
+    //    ,0 ,0 ,0 ,1
+    //])
+    //,X = multiplyM(C,B)
+    //;
+    //console.log(X)
+    //,[-10, 20, 10, 1]
+    //ctx.arc(a * -10 + c * 13 + e + 150, -(b * -10 + d * 13 + f) + 150, 1.5, 0, 2*PI, false)
+    //div.style.webkitTransform = "translate(" + (a * -10 + c * 13 + e + 150) + "px, " + (-(b * -10 + d * 13 + f) + 150) + "px)"
+    //div.style.webkitTransform = "matrix(" + [a,b,c,d,e + 150,-f + 150].join(",") + ")";
+    div.style.webkitTransform = "matrix(" + [y2 , x2 , -1 * x2, y2, e + 150,-f + 150].join(",") + ")";
+    //div.style.webkitTransform = "translate(" + ( vs2[0][0] + 150 ) + "px," + ( -vs2[0][1] + 150 ) + "px) rotate("+theta+"deg)";
+    //div.style.webkitTransform = "translate(" + ( vs2[0][0] + 150 ) + "px," + ( -vs2[0][1] + 150 ) + "px)";
+    //ctx.fill();
+    ctx.stroke();
+}
+function loop(){
+    render();
+    requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
